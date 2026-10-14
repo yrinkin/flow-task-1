@@ -1,13 +1,29 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 
 from .database import SessionLocal
-from .models import TaskRow, UserRow
-from .schemas import Priority, Status, Task, TaskCreate, User
-from .security import hash_password
+from .models import SessionRow, TaskRow, UserRow
+from .schemas import (
+    PASSWORD_MAX_LENGTH,
+    USERNAME_PATTERN,
+    Priority,
+    Status,
+    Task,
+    TaskCreate,
+    User,
+    normalize_username,
+)
+from .security import hash_password, hash_session_token, new_session_token, verify_dummy_password, verify_password
+
+SESSION_LIFETIME = timedelta(days=7)
+
+
+def utc_now() -> datetime:
+    """DB에 저장하는 UTC 일시(시간대 정보 없음, 초 단위)."""
+    return datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None)
 
 
 def to_task(row: TaskRow) -> Task:
@@ -104,7 +120,7 @@ class DbUserStore:
         row = UserRow(
             username=username,
             password_hash=hash_password(password),
-            created_at=datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None),
+            created_at=utc_now(),
         )
         try:
             with SessionLocal() as session, session.begin():
@@ -113,3 +129,48 @@ class DbUserStore:
                 return to_user(row)
         except IntegrityError:
             return None
+
+    def authenticate(self, username: str, password: str) -> User | None:
+        """아이디·비밀번호가 맞으면 User, 아니면 None. 실패 이유는 구분하지 않는다."""
+        name = normalize_username(username)
+        if not USERNAME_PATTERN.fullmatch(name) or len(password) > PASSWORD_MAX_LENGTH:
+            verify_dummy_password(password[:PASSWORD_MAX_LENGTH])
+            return None
+        with SessionLocal() as session:
+            row = session.scalars(select(UserRow).where(UserRow.username == name)).one_or_none()
+        if row is None:
+            verify_dummy_password(password)
+            return None
+        return to_user(row) if verify_password(row.password_hash, password) else None
+
+
+class DbSessionStore:
+    """MariaDB sessions 테이블에 로그인 세션을 저장한다. 세션 값 대신 SHA-256 해시를 저장한다."""
+
+    def create(self, user_id: int) -> str:
+        """세션을 만들고 쿠키에 넣을 세션 값을 반환한다. 만료는 지금부터 7일 뒤로 고정한다."""
+        token = new_session_token()
+        now = utc_now()
+        with SessionLocal() as session, session.begin():
+            session.add(
+                SessionRow(token_hash=hash_session_token(token), user_id=user_id, created_at=now, expires_at=now + SESSION_LIFETIME)
+            )
+        return token
+
+    def get_user(self, token: str) -> User | None:
+        """유효한 세션의 사용자를 반환한다. 없거나 만료되었으면 None이며 만료된 세션은 지운다."""
+        token_hash = hash_session_token(token)
+        with SessionLocal() as session, session.begin():
+            row = session.get(SessionRow, token_hash)
+            if row is None:
+                return None
+            if row.expires_at <= utc_now():
+                session.delete(row)
+                return None
+            user = session.get(UserRow, row.user_id)
+            return to_user(user) if user is not None else None
+
+    def delete(self, token: str) -> None:
+        """세션을 지운다. 없는 세션이어도 오류 없이 끝난다."""
+        with SessionLocal() as session, session.begin():
+            session.execute(delete(SessionRow).where(SessionRow.token_hash == hash_session_token(token)))

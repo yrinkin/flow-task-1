@@ -114,9 +114,17 @@
   결과: 422 응답에 비밀번호·input 없음, 할 일 API 422는 msg 유지. SQL로 password_hash가 모두 $argon2id$(97자)이고 평문 5종 미포함. 서버 로그에 비밀번호 없음.
   시험 사용자(t17*)는 확인 후 삭제해 users 0행.
   사용자 확인(2026-10-14): task-flow-api 재시작 후 /docs에서 가입 201, 대문자 중복 409, 비밀번호 7자 422(응답에 비밀번호 없음), SQL로 해시 저장 확인. 남은 오류 없음.
-- [ ] T18: 로그인·로그아웃·내 정보 API와 세션 쿠키.
+- [x] T18: 로그인·로그아웃·내 정보 API와 세션 쿠키.
   확인: 로그인 200과 HttpOnly·SameSite=Lax 쿠키, 틀린 아이디·비밀번호 모두 같은 401 안내, /api/auth/me 200,
   로그아웃 204 후 같은 쿠키로 me 401, App 재시작 후 세션 유지, 만료된 세션 401.
+  기록(2026-10-14): backend/security.py(세션 값 생성·SHA-256 해시, 없는 아이디용 가짜 해시 검증), backend/schemas.py(LoginRequest: 형식 규칙 없이 문자열만),
+  backend/store.py(DbUserStore.authenticate, DbSessionStore create·get_user·delete, 만료 7일 고정), backend/main.py(login·logout·me, current_user 의존성, tf_session 쿠키),
+  deploy/api.env.example(COOKIE_SECURE=false 추가). 새 패키지 없음.
+  실행: 포트 8001 uvicorn + urllib 스크립트 31개 통과. 로그인 200·쿠키 HttpOnly·Max-Age=604800·Path=/api·SameSite=lax(Secure 없음), 세션 값 43자, DB에는 SHA-256 해시만·만료 7일.
+  틀린 비밀번호·없는 아이디·형식 오류·짧은·긴·대소문자 다른 비밀번호 모두 같은 401 본문·쿠키 없음, 누락·타입·정의되지 않은 필드 422(비밀번호 미포함), 응답 시간 58ms/53ms.
+  me 200, 쿠키 없음·위조·DB 해시값 401. 다시 로그인 시 이전 세션 401·다른 세션 유지. 로그아웃 204·Max-Age=0, 같은 쿠키 me 401, DB 세션 삭제, 세션 없이 로그아웃 204.
+  만료 시각이 지난 세션 401·DB에서 삭제. 8001 재시작 후 같은 쿠키로 me 200. COOKIE_SECURE=true(8002)에서 Secure 적용. 로그에 세션 값·비밀번호 없음.
+  시험 사용자(t18*)는 삭제(세션은 CASCADE로 함께 삭제). 확인 기준은 8001에서 모두 통과해 완료로 표시. 운영 서비스(8000) 반영은 사용자 재시작 필요.
 - [ ] T19: tasks에 user_id(users 외래키) 추가 마이그레이션과 기존 데이터 처리.
   확인: 실행 전 tasks 백업 파일 생성, 기존 행 처리 방법을 사용자에게 확인받은 뒤 실행, DESCRIBE tasks로 user_id NOT NULL·외래키 확인.
 - [ ] T20: /api/tasks 인증 필수와 사용자별 데이터 분리.

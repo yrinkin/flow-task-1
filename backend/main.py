@@ -1,21 +1,30 @@
 import logging
+import os
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from .schemas import Priority, SignupRequest, Status, Task, TaskCreate, TaskUpdate, User
-from .store import DbTaskStore, DbUserStore
+from .schemas import LoginRequest, Priority, SignupRequest, Status, Task, TaskCreate, TaskUpdate, User
+from .store import SESSION_LIFETIME, DbSessionStore, DbTaskStore, DbUserStore
 
 app = FastAPI(title="Task Flow API")
 store = DbTaskStore()
 user_store = DbUserStore()
+session_store = DbSessionStore()
 logger = logging.getLogger(__name__)
 
 TASK_NOT_FOUND = "할 일을 찾을 수 없습니다."
 USERNAME_TAKEN = "이미 사용 중인 아이디입니다."
+LOGIN_FAILED = "아이디 또는 비밀번호가 올바르지 않습니다."
+LOGIN_REQUIRED = "로그인이 필요합니다."
+
+# 세션 쿠키 설정(API-SPEC.md 인증 공통). Secure는 HTTPS로 공개할 때 COOKIE_SECURE=true로 켠다.
+SESSION_COOKIE = "tf_session"
+COOKIE_PATH = "/api"
+COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").strip().lower() == "true"
 DATABASE_ERROR = "DB에 연결할 수 없거나 처리 중 오류가 발생했습니다."
 
 
@@ -48,6 +57,57 @@ def signup(data: SignupRequest) -> User:
     user = user_store.create(data.username, data.password)
     if user is None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=USERNAME_TAKEN)
+    return user
+
+
+def set_session_cookie(response: Response, token: str) -> None:
+    response.set_cookie(
+        SESSION_COOKIE,
+        token,
+        max_age=int(SESSION_LIFETIME.total_seconds()),
+        path=COOKIE_PATH,
+        httponly=True,
+        samesite="lax",
+        secure=COOKIE_SECURE,
+    )
+
+
+def clear_session_cookie(response: Response) -> None:
+    response.delete_cookie(SESSION_COOKIE, path=COOKIE_PATH, httponly=True, samesite="lax", secure=COOKIE_SECURE)
+
+
+def current_user(tf_session: str | None = Cookie(default=None)) -> User:
+    """세션 쿠키로 로그인한 사용자를 찾는다. 없거나 만료되었으면 401."""
+    user = session_store.get_user(tf_session) if tf_session else None
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=LOGIN_REQUIRED)
+    return user
+
+
+@app.post("/api/auth/login")
+def login(data: LoginRequest, response: Response, tf_session: str | None = Cookie(default=None)) -> User:
+    """로그인하고 세션 쿠키를 발급한다. 실패 이유(아이디·비밀번호)는 구분하지 않는다."""
+    user = user_store.authenticate(data.username, data.password)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=LOGIN_FAILED)
+    if tf_session:
+        # 이미 로그인한 상태에서 다시 로그인하면 기존 세션은 무효로 한다.
+        session_store.delete(tf_session)
+    set_session_cookie(response, session_store.create(user.id))
+    return user
+
+
+@app.post("/api/auth/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response, tf_session: str | None = Cookie(default=None)) -> None:
+    """현재 세션을 지우고 쿠키를 삭제한다. 세션이 없어도 204."""
+    if tf_session:
+        session_store.delete(tf_session)
+    clear_session_cookie(response)
+
+
+@app.get("/api/auth/me")
+def me(user: User = Depends(current_user)) -> User:
+    """현재 로그인한 사용자를 반환한다. 로그인하지 않았으면 401."""
     return user
 
 

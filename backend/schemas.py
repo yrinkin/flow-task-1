@@ -127,6 +127,18 @@ class SignupRequest(BaseModel):
         return value
 
 
+class LoginRequest(BaseModel):
+    """POST /api/auth/login 요청 본문.
+
+    아이디·비밀번호 형식 규칙은 여기서 검사하지 않는다. 규칙에 맞지 않는 값도 로그인 실패(401)와 같은 응답을 주기 위해서다.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    username: str
+    password: str
+
+
 class User(BaseModel):
     """API 응답의 사용자. 비밀번호와 해시는 포함하지 않는다."""
 
