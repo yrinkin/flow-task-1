@@ -94,8 +94,16 @@
   기록(2026-10-14): API-SPEC.md에 상태 코드 401·409·429, 인증 공통(tf_session 쿠키 속성, 7일 고정 만료, DB 세션), User 객체,
   POST /api/auth/signup·login·logout, GET /api/auth/me, 할 일 API 공통(로그인 필수, 다른 사용자 id 404), 저장 단계(T19 user_id) 추가. 코드 변경 없음.
   사용자 검토(2026-10-14): 명세 확인 완료. 가입 후 자동 로그인 없음, 가입 409로 아이디 존재가 알려지는 점 수용.
-- [ ] T16: users·sessions 모델과 비밀번호 해시 함수. 필요한 패키지는 목적과 함께 requirements.txt에 기록한다.
+- [x] T16: users·sessions 모델과 비밀번호 해시 함수. 필요한 패키지는 목적과 함께 requirements.txt에 기록한다.
   확인: python -m backend.init_db로 users·sessions 테이블 생성, 기존 tasks는 변경 없음. 해시 결과가 평문과 다르고 같은 비밀번호도 매번 다른 값이며 검증은 성공.
+  기록(2026-10-14): requirements.txt에 argon2-cffi 25.1.0(Argon2id 해시) 추가. backend/security.py(신규, hash_password·verify_password),
+  backend/models.py에 UserRow(users: id, username varchar(30) UNIQUE, password_hash varchar(255), created_at)·SessionRow(sessions: token_hash char(64) PK, user_id FK→users ON DELETE CASCADE, created_at, expires_at, 인덱스) 추가.
+  backend/init_db.py는 모든 테이블을 대상으로 없는 테이블만 생성하고 결과를 테이블별로 출력.
+  실행: .venv/bin/python -m backend.init_db 2회 → 1회차 users·sessions 생성·tasks 변경 없음, 2회차 모두 "이미 있어 변경하지 않음".
+  결과: 실행 전후 SHOW CREATE TABLE tasks와 tasks 8행이 동일. users·sessions 0행, 외래키 sessions_ibfk_1(CASCADE) 확인.
+  해시 확인 11개 통과: $argon2id$(m=65536KiB t=3 p=4), 평문 미포함, 같은 비밀번호도 다른 해시, 검증 성공, 틀린·대소문자·앞 공백 비밀번호 거절,
+  잘못된 해시 형식은 False, 한글·이모지·64자 비밀번호, 해시 97자. 해시 1회 약 62ms. 운영 서비스(8000)는 재시작하지 않음(API 변경 없음).
+  사용자 확인(2026-10-14): sudo mariadb로 SHOW TABLES(sessions·tasks·users), DESCRIBE users·sessions 결과 정상. 남은 오류 없음.
 - [ ] T17: 회원가입 API POST /api/auth/signup.
   확인: 정상 가입 201, 대소문자만 다른 중복 아이디 409, 규칙 위반 422, SQL로 password_hash에 평문이 없음.
 - [ ] T18: 로그인·로그아웃·내 정보 API와 세션 쿠키.

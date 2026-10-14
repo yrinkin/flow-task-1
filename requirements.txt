@@ -6,3 +6,5 @@ uvicorn==0.54.0
 SQLAlchemy==2.0.54
 # PyMySQL: SQLAlchemy가 MariaDB에 접속할 때 쓰는 드라이버
 PyMySQL==1.2.3
+# argon2-cffi: 회원 비밀번호를 Argon2id 해시로 저장·검증 (T16~)
+argon2-cffi==25.1.0
