@@ -125,8 +125,14 @@
   me 200, 쿠키 없음·위조·DB 해시값 401. 다시 로그인 시 이전 세션 401·다른 세션 유지. 로그아웃 204·Max-Age=0, 같은 쿠키 me 401, DB 세션 삭제, 세션 없이 로그아웃 204.
   만료 시각이 지난 세션 401·DB에서 삭제. 8001 재시작 후 같은 쿠키로 me 200. COOKIE_SECURE=true(8002)에서 Secure 적용. 로그에 세션 값·비밀번호 없음.
   시험 사용자(t18*)는 삭제(세션은 CASCADE로 함께 삭제). 확인 기준은 8001에서 모두 통과해 완료로 표시. 운영 서비스(8000) 반영은 사용자 재시작 필요.
-- [ ] T19: tasks에 user_id(users 외래키) 추가 마이그레이션과 기존 데이터 처리.
+- [x] T19: tasks에 user_id(users 외래키) 추가 마이그레이션과 기존 데이터 처리.
   확인: 실행 전 tasks 백업 파일 생성, 기존 행 처리 방법을 사용자에게 확인받은 뒤 실행, DESCRIBE tasks로 user_id NOT NULL·외래키 확인.
+  기록(2026-10-14): backend/migrate_tasks_user_id.py(신규), backend/models.py(TaskRow.user_id FK·인덱스, 새 설치 시 init_db가 생성).
+  백업: mariadb-dump로 ~/task-flow-backups/tasks-before-T19-20261014-135631.sql(권한 600, Git 저장소 밖, CREATE TABLE·8행).
+  사용자 결정: 소유자 없는 기존 할 일 8개를 abcd(id 37)에게 배정.
+  실행: --assign-to 없음·없는 사용자 → 종료 코드 1, tasks 구조 변경 없음. --assign-to abcd → 컬럼 추가(NULL)·8개 배정·NOT NULL·ix_tasks_user_id·fk_tasks_user_id(ON DELETE CASCADE). 다시 실행 → "이미 적용".
+  결과: DESCRIBE tasks에서 user_id int NOT NULL MUL, 8행 모두 abcd, user_id 없는 INSERT·없는 사용자 INSERT 거절.
+  영향: 운영 서비스(이전 코드)는 할 일 조회 200, 등록은 user_id가 없어 503("Field 'user_id' doesn't have a default value"). T20 반영 후 해소. 남은 오류 없음(T20 대기).
 - [ ] T20: /api/tasks 인증 필수와 사용자별 데이터 분리.
   확인: 미로그인 401, 사용자 A·B가 각자 등록한 할 일만 조회·검색·필터, A가 B의 id로 PATCH·DELETE 시 404이고 B의 데이터 유지. T07 API 회귀 통과.
 - [ ] T21: 화면에 회원가입·로그인·로그아웃 추가, 로그인한 아이디 표시, 401 응답 시 로그인 화면으로 이동.

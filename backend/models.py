@@ -13,6 +13,10 @@ class TaskRow(Base):
     __table_args__ = {"mysql_engine": "InnoDB", "mysql_charset": "utf8mb4"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # 할 일의 소유자(T19). 기존 DB에는 backend.migrate_tasks_user_id로 추가한다.
+    user_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE", name="fk_tasks_user_id"), nullable=False, index=True
+    )
     title: Mapped[str] = mapped_column(String(100), nullable=False)
     description: Mapped[str] = mapped_column(String(2000), nullable=False, default="", server_default="")
     status: Mapped[str] = mapped_column(
