@@ -154,8 +154,17 @@
   ~/task-flow-backups/before-move-abcd-to-kim-20261014-141007.sql 백업 후 한 트랜잭션으로 할 일 8개를 kim(id 57)에게 옮기고 남은 할 일 0개 조건으로 abcd 삭제. 할 일 8개 유지.
   사용자 브라우저 확인(2026-10-14, Web 주소): kim 로그인·목록 → 할 일 등록(201, id 46) → 로그아웃·재로그인 후 유지 → 새 계정 her 가입·자동 로그인, her 목록에 kim 할 일 없음(DB: kim 9개·her 0개). 서버 로그로 확인. 남은 오류 없음.
   후속 수정(2026-10-14): 로그인 화면에 로그아웃 버튼(#user-bar)과 회원가입 폼(#signup-form)이 보임 → .user-bar·.auth-form의 display:flex가 hidden 속성을 덮어씀. styles.css에 [hidden]{display:none !important} 추가, /var/www/task-flow에 복사. 사용자 브라우저 확인 정상.
-- [ ] T22: 배포 반영. App 재시작, 화면 파일을 /var/www/task-flow에 복사, Nginx에서 /api/auth/login 요청 횟수 제한.
+- [x] T22: 배포 반영. App 재시작, 화면 파일을 /var/www/task-flow에 복사, Nginx에서 /api/auth/login 요청 횟수 제한.
   확인: Web 주소로 A·B 시나리오 재확인, App 재시작 후 로그인 유지, 짧은 시간 반복 로그인 시 429.
+  기록(2026-10-14): deploy/nginx-task-flow.conf에 limit_req_zone tf_login(IP별 분당 5회, burst 5 nodelay)과 location = /api/auth/login 추가,
+  초과 시 Nginx가 429 {"detail":"로그인 시도가 너무 많습니다. 1분 뒤에 다시 시도하세요."}(application/json, Retry-After 60) 응답. 다른 API는 제한 없음.
+  사전 시험: 임시 Nginx(18080)에서 nginx -t 통과, 연속 로그인 12회 → 401 6회·429 6회, /api/health 15회 200, 13초 뒤 회복.
+  사용자 실행(sudo): 설정 복사, nginx -t 후 reload(14:17), task-flow-api 재시작(14:23).
+  확인(Web 주소 http://127.0.0.1): A·B 가입·로그인, 각자 자기 할 일만, A→B 수정·삭제 404, 미로그인 401.
+  App 재시작 후 저장해 둔 A·B 쿠키로 me 200·목록·등록 201(재로그인 없음). 틀린 비밀번호 10회 → 401 6회 후 429, 제한 중에는 맞는 비밀번호도 429, 이미 로그인한 사용자는 정상 사용.
+  kim·her 할 일 9개 시험 전후 동일, 시험 계정(t22*) 삭제, App 로그에 비밀번호·세션 값 없음. 남은 오류 없음.
+  참고: ngrok 등 같은 서버의 프록시를 거치면 모든 요청 IP가 127.0.0.1이라 로그인 제한을 함께 쓴다.
+  HTTPS로 외부 공개 시 /etc/task-flow/api.env에 COOKIE_SECURE=true 추가 후 App 재시작(그 경우 HTTPS 주소로 접속).
 ## 실행 기준
 T01~T04: python3 -m http.server 5500 --bind 127.0.0.1 --directory frontend
 T05~T11: 가상환경에서 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
