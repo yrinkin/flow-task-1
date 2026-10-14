@@ -88,9 +88,12 @@
   오류: 재시작 확인 중 kill(SIGTERM)로 정상 종료되어 Restart=on-failure가 동작하지 않고 서비스가 멈춤(Web /api 502). 사용자가 systemctl start로 복구. 남은 오류 없음.
   점검용 항목(id 33)은 확인 후 Web 주소로 삭제(204).
 ## 6장: 회원 기능 (PRD F10~F15)
-- [ ] T15: API-SPEC.md에 회원·인증 계약 추가. 코드는 변경하지 않는다.
+- [x] T15: API-SPEC.md에 회원·인증 계약 추가. 코드는 변경하지 않는다.
   내용: POST /api/auth/signup·login·logout, GET /api/auth/me, 세션 쿠키 규칙, /api/tasks 인증 필수와 401·404·409 응답.
   확인: PRD F10~F15와 보안 항목이 명세에 모두 반영되었는지 사용자 검토.
+  기록(2026-10-14): API-SPEC.md에 상태 코드 401·409·429, 인증 공통(tf_session 쿠키 속성, 7일 고정 만료, DB 세션), User 객체,
+  POST /api/auth/signup·login·logout, GET /api/auth/me, 할 일 API 공통(로그인 필수, 다른 사용자 id 404), 저장 단계(T19 user_id) 추가. 코드 변경 없음.
+  사용자 검토(2026-10-14): 명세 확인 완료. 가입 후 자동 로그인 없음, 가입 409로 아이디 존재가 알려지는 점 수용.
 - [ ] T16: users·sessions 모델과 비밀번호 해시 함수. 필요한 패키지는 목적과 함께 requirements.txt에 기록한다.
   확인: python -m backend.init_db로 users·sessions 테이블 생성, 기존 tasks는 변경 없음. 해시 결과가 평문과 다르고 같은 비밀번호도 매번 다른 값이며 검증은 성공.
 - [ ] T17: 회원가입 API POST /api/auth/signup.
