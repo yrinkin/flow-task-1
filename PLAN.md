@@ -67,7 +67,9 @@
   결과: 등록 행을 mariadb SELECT로 확인. API 재시작 후 같은 id·수정 내용 유지. 틀린 DB 비밀번호로 실행 시 /api/tasks 503, 로그에 비밀번호 미노출.
   테스트 항목([T11검증] 제목)은 확인 후 삭제해 tasks는 0행. AUTO_INCREMENT는 6부터 시작. 남은 오류 없음.
 ## 5장: 서버 분리
-- [ ] T12: DB 서버 구성 후 App 서버에서 SELECT 1 확인.
+- [x] T12: DB 서버 구성 후 App 서버에서 SELECT 1 확인.
+  기록(2026-10-14): 사용자가 서버에서 직접 구성하고 완료를 보고함. Claude는 서버에 접속하지 못해 직접 확인하지 않음.
+  세부 결과(DB 서버 주소, bind-address, 'task_flow_app'@App IP 계정, 3306 방화벽, App 서버의 SELECT 1 결과)는 아직 기록되지 않음.
 - [ ] T13: App 서버 코드·가상환경·환경변수·systemd 구성.
   확인: App에서 /api/health 응답.
 - [ ] T14: Web 서버 Nginx와 정적 파일·/api 프록시 구성.
