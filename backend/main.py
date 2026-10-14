@@ -1,17 +1,21 @@
 import logging
 
 from fastapi import FastAPI, HTTPException, Request, status
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 
-from .schemas import Priority, Status, Task, TaskCreate, TaskUpdate
-from .store import DbTaskStore
+from .schemas import Priority, SignupRequest, Status, Task, TaskCreate, TaskUpdate, User
+from .store import DbTaskStore, DbUserStore
 
 app = FastAPI(title="Task Flow API")
 store = DbTaskStore()
+user_store = DbUserStore()
 logger = logging.getLogger(__name__)
 
 TASK_NOT_FOUND = "할 일을 찾을 수 없습니다."
+USERNAME_TAKEN = "이미 사용 중인 아이디입니다."
 DATABASE_ERROR = "DB에 연결할 수 없거나 처리 중 오류가 발생했습니다."
 
 
@@ -22,10 +26,29 @@ def handle_database_error(request: Request, error: SQLAlchemyError) -> JSONRespo
     return JSONResponse(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, content={"detail": DATABASE_ERROR})
 
 
+@app.exception_handler(RequestValidationError)
+def handle_validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
+    """입력 검증 실패(422)에서 보낸 값(input)과 내부 정보(ctx)를 빼고 위치·종류·문구만 돌려준다.
+
+    FastAPI 기본 응답은 보낸 값을 그대로 담아 비밀번호가 응답에 다시 실리기 때문이다.
+    """
+    errors = [{key: value for key, value in item.items() if key not in ("input", "ctx")} for item in error.errors()]
+    return JSONResponse(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, content={"detail": jsonable_encoder(errors)})
+
+
 @app.get("/api/health")
 def health() -> dict[str, str]:
     """API 서버가 요청을 처리할 수 있는지 확인한다."""
     return {"status": "ok"}
+
+
+@app.post("/api/auth/signup", status_code=status.HTTP_201_CREATED)
+def signup(data: SignupRequest) -> User:
+    """회원가입한다. 로그인 세션은 만들지 않는다. 대소문자만 다른 아이디도 중복으로 본다."""
+    user = user_store.create(data.username, data.password)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=USERNAME_TAKEN)
+    return user
 
 
 @app.get("/api/tasks")

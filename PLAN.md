@@ -104,8 +104,16 @@
   해시 확인 11개 통과: $argon2id$(m=65536KiB t=3 p=4), 평문 미포함, 같은 비밀번호도 다른 해시, 검증 성공, 틀린·대소문자·앞 공백 비밀번호 거절,
   잘못된 해시 형식은 False, 한글·이모지·64자 비밀번호, 해시 97자. 해시 1회 약 62ms. 운영 서비스(8000)는 재시작하지 않음(API 변경 없음).
   사용자 확인(2026-10-14): sudo mariadb로 SHOW TABLES(sessions·tasks·users), DESCRIBE users·sessions 결과 정상. 남은 오류 없음.
-- [ ] T17: 회원가입 API POST /api/auth/signup.
+- [x] T17: 회원가입 API POST /api/auth/signup.
   확인: 정상 가입 201, 대소문자만 다른 중복 아이디 409, 규칙 위반 422, SQL로 password_hash에 평문이 없음.
+  기록(2026-10-14): backend/schemas.py(SignupRequest: 아이디 공백 제거·소문자·^[a-z0-9_]{3,30}$, 비밀번호 8~64자·공백 유지, User 응답),
+  backend/store.py(DbUserStore.create: Argon2id 해시 저장, UNIQUE 위반 시 None), backend/main.py(POST /api/auth/signup 201·409).
+  오류 발견·수정: FastAPI 기본 422 응답의 input에 비밀번호가 그대로 실림 → 모든 422 응답에서 input·ctx 제거(type·loc·msg만), API-SPEC.md에 명시.
+  실행: 포트 8001 uvicorn + urllib 스크립트 26개 통과(정상 201·응답에 비밀번호·해시·쿠키 없음, 공백·대문자 아이디 소문자 저장, 경계값,
+  t17_alice·T17_ALICE·" t17_Alice " 409, 같은 아이디 동시 10건 → 201 1건·409 9건, 규칙 위반·누락·타입·정의되지 않은 필드·JSON 깨짐 422 15종).
+  결과: 422 응답에 비밀번호·input 없음, 할 일 API 422는 msg 유지. SQL로 password_hash가 모두 $argon2id$(97자)이고 평문 5종 미포함. 서버 로그에 비밀번호 없음.
+  시험 사용자(t17*)는 확인 후 삭제해 users 0행.
+  사용자 확인(2026-10-14): task-flow-api 재시작 후 /docs에서 가입 201, 대문자 중복 409, 비밀번호 7자 422(응답에 비밀번호 없음), SQL로 해시 저장 확인. 남은 오류 없음.
 - [ ] T18: 로그인·로그아웃·내 정보 API와 세션 쿠키.
   확인: 로그인 200과 HttpOnly·SameSite=Lax 쿠키, 틀린 아이디·비밀번호 모두 같은 401 안내, /api/auth/me 200,
   로그아웃 204 후 같은 쿠키로 me 401, App 재시작 후 세션 유지, 만료된 세션 401.

@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 TITLE_MAX_LENGTH = 100
 DESCRIPTION_MAX_LENGTH = 2000
 DATE_PATTERN = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+USERNAME_PATTERN = re.compile(r"[a-z0-9_]{3,30}")
+PASSWORD_MIN_LENGTH = 8
+PASSWORD_MAX_LENGTH = 64
 
 
 class Status(str, Enum):
@@ -91,4 +94,42 @@ class Task(BaseModel):
     status: Status
     priority: Priority
     due_date: date | None
+    created_at: datetime
+
+
+def normalize_username(value: str) -> str:
+    """앞뒤 공백을 제거하고 소문자로 바꾼다. 대소문자만 다른 아이디는 같은 아이디로 본다."""
+    return value.strip().lower()
+
+
+class SignupRequest(BaseModel):
+    """POST /api/auth/signup 요청 본문. 정의되지 않은 필드는 거절한다."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    username: str
+    password: str
+
+    @field_validator("username")
+    @classmethod
+    def check_username(cls, value: str) -> str:
+        username = normalize_username(value)
+        if not USERNAME_PATTERN.fullmatch(username):
+            raise ValueError("아이디는 영문 소문자·숫자·밑줄(_) 3~30자여야 합니다.")
+        return username
+
+    @field_validator("password")
+    @classmethod
+    def check_password(cls, value: str) -> str:
+        # 비밀번호는 공백을 제거하지 않고 입력 그대로 쓴다.
+        if not PASSWORD_MIN_LENGTH <= len(value) <= PASSWORD_MAX_LENGTH:
+            raise ValueError(f"비밀번호는 {PASSWORD_MIN_LENGTH}~{PASSWORD_MAX_LENGTH}자여야 합니다.")
+        return value
+
+
+class User(BaseModel):
+    """API 응답의 사용자. 비밀번호와 해시는 포함하지 않는다."""
+
+    id: int
+    username: str
     created_at: datetime

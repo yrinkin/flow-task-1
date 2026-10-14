@@ -2,10 +2,12 @@ from datetime import datetime, timezone
 from enum import Enum
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from .database import SessionLocal
-from .models import TaskRow
-from .schemas import Priority, Status, Task, TaskCreate
+from .models import TaskRow, UserRow
+from .schemas import Priority, Status, Task, TaskCreate, User
+from .security import hash_password
 
 
 def to_task(row: TaskRow) -> Task:
@@ -83,3 +85,31 @@ class DbTaskStore:
                 return False
             session.delete(row)
             return True
+
+
+def to_user(row: UserRow) -> User:
+    """DB 행을 API 응답 모델로 바꾼다. password_hash는 포함하지 않는다."""
+    return User(id=row.id, username=row.username, created_at=row.created_at.replace(tzinfo=timezone.utc))
+
+
+class DbUserStore:
+    """MariaDB users 테이블에 회원을 저장한다."""
+
+    def create(self, username: str, password: str) -> User | None:
+        """비밀번호를 해시해 회원을 만든다. 이미 있는 아이디면 None을 반환한다.
+
+        username은 SignupRequest에서 소문자로 정규화된 값이다. 중복 여부는 DB의 UNIQUE 제약으로
+        판단하므로 같은 아이디로 동시에 가입해도 한 명만 성공한다.
+        """
+        row = UserRow(
+            username=username,
+            password_hash=hash_password(password),
+            created_at=datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None),
+        )
+        try:
+            with SessionLocal() as session, session.begin():
+                session.add(row)
+                session.flush()
+                return to_user(row)
+        except IntegrityError:
+            return None
