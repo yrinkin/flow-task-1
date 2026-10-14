@@ -78,8 +78,15 @@
   확인: systemd-analyze verify 오류 없음. task-flow-api active·enabled, 실행 계정 kyrin4321, --reload 없이 127.0.0.1:8000 대기.
   curl /api/health 200 {"status":"ok"}, /api/tasks 8개(DB), / 화면 200. kill -9 후 systemd가 자동 재시작(NRestarts=1), 데이터 유지. 로그에 비밀번호 없음. 남은 오류 없음.
   사용자 확인(2026-10-14): sudo systemctl stop/start task-flow-api.service로 중지·시작과 /api/health 응답 정상.
-- [ ] T14: Web 서버 Nginx와 정적 파일·/api 프록시 구성.
+- [x] T14: Web 서버 Nginx와 정적 파일·/api 프록시 구성.
   확인: Web 주소로 등록, DB 저장, App 재시작 후 유지.
+  기록(2026-10-14): Web 서버는 이 PC(WSL), Nginx 1.28.3. 변경 파일 deploy/nginx-task-flow.conf(신규), backend/main.py(정적 파일 제공 제거, 8000은 API·/docs만), API-SPEC.md(화면 제공 항목).
+  사용자 실행(sudo): frontend 3개 파일을 /var/www/task-flow에 복사(root 644), 사이트 설정 등록·default 비활성화, nginx -t 후 reload, task-flow-api 재시작.
+  사전 시험: 같은 server 블록을 임시 Nginx(18080)로 실행해 nginx -t 통과, 경로별 응답·프록시·413 확인.
+  확인: Web(80) / 200(Cache-Control no-cache)·/api/health·/api/tasks 200·/docs 404, App(8000) / 404·/api/health 200.
+  Web 주소로 등록(id 33, 201)·PATCH 200 → SQL 조회로 DB 저장 확인 → App 재시작(사용자 systemctl start) 후 Web 주소로 같은 id·상태 유지.
+  오류: 재시작 확인 중 kill(SIGTERM)로 정상 종료되어 Restart=on-failure가 동작하지 않고 서비스가 멈춤(Web /api 502). 사용자가 systemctl start로 복구. 남은 오류 없음.
+  점검용 항목(id 33)은 확인 후 Web 주소로 삭제(204).
 ## 실행 기준
 T01~T04: python3 -m http.server 5500 --bind 127.0.0.1 --directory frontend
 T05~T11: 가상환경에서 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
