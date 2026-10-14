@@ -1,0 +1,21 @@
+# Task Flow API systemd 서비스 (T13, App 서버)
+# 설치: sudo cp deploy/task-flow-api.service /etc/systemd/system/
+# 환경변수는 /etc/task-flow/api.env(권한 600)에서 읽는다. 예시는 deploy/api.env.example.
+[Unit]
+Description=Task Flow API (FastAPI)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kyrin4321
+Group=kyrin4321
+WorkingDirectory=/home/kyrin4321/workspace/vibe-app/flow-task
+EnvironmentFile=/etc/task-flow/api.env
+# 운영 실행이므로 --reload는 쓰지 않는다. 접속 주소·포트는 api.env의 APP_HOST·APP_PORT를 쓴다.
+ExecStart=/home/kyrin4321/workspace/vibe-app/flow-task/.venv/bin/python -m uvicorn backend.main:app --host ${APP_HOST} --port ${APP_PORT}
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

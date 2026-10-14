@@ -70,8 +70,14 @@
 - [x] T12: DB 서버 구성 후 App 서버에서 SELECT 1 확인.
   기록(2026-10-14): 사용자가 서버에서 직접 구성하고 완료를 보고함. Claude는 서버에 접속하지 못해 직접 확인하지 않음.
   세부 결과(DB 서버 주소, bind-address, 'task_flow_app'@App IP 계정, 3306 방화벽, App 서버의 SELECT 1 결과)는 아직 기록되지 않음.
-- [ ] T13: App 서버 코드·가상환경·환경변수·systemd 구성.
+- [x] T13: App 서버 코드·가상환경·환경변수·systemd 구성.
   확인: App에서 /api/health 응답.
+  기록(2026-10-14): App 서버는 이 PC(WSL), 코드는 현재 위치에서 실행. 변경 파일 deploy/task-flow-api.service, deploy/api.env.example(신규, 가짜 값).
+  가상환경: clone된 .venv(다른 PC의 Python 3.10)가 동작하지 않아 python3 -m venv .venv로 재생성(Python 3.14.4), pip install -r requirements.txt.
+  사용자 실행(sudo): /etc/task-flow/api.env 생성(root:root 600, .env의 DB_* + APP_HOST=127.0.0.1, APP_PORT=8000), 서비스 파일 복사, daemon-reload, enable --now.
+  확인: systemd-analyze verify 오류 없음. task-flow-api active·enabled, 실행 계정 kyrin4321, --reload 없이 127.0.0.1:8000 대기.
+  curl /api/health 200 {"status":"ok"}, /api/tasks 8개(DB), / 화면 200. kill -9 후 systemd가 자동 재시작(NRestarts=1), 데이터 유지. 로그에 비밀번호 없음. 남은 오류 없음.
+  사용자 확인(2026-10-14): sudo systemctl stop/start task-flow-api.service로 중지·시작과 /api/health 응답 정상.
 - [ ] T14: Web 서버 Nginx와 정적 파일·/api 프록시 구성.
   확인: Web 주소로 등록, DB 저장, App 재시작 후 유지.
 ## 실행 기준
