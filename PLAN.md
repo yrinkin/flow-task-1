@@ -87,9 +87,31 @@
   Web 주소로 등록(id 33, 201)·PATCH 200 → SQL 조회로 DB 저장 확인 → App 재시작(사용자 systemctl start) 후 Web 주소로 같은 id·상태 유지.
   오류: 재시작 확인 중 kill(SIGTERM)로 정상 종료되어 Restart=on-failure가 동작하지 않고 서비스가 멈춤(Web /api 502). 사용자가 systemctl start로 복구. 남은 오류 없음.
   점검용 항목(id 33)은 확인 후 Web 주소로 삭제(204).
+## 6장: 회원 기능 (PRD F10~F15)
+- [ ] T15: API-SPEC.md에 회원·인증 계약 추가. 코드는 변경하지 않는다.
+  내용: POST /api/auth/signup·login·logout, GET /api/auth/me, 세션 쿠키 규칙, /api/tasks 인증 필수와 401·404·409 응답.
+  확인: PRD F10~F15와 보안 항목이 명세에 모두 반영되었는지 사용자 검토.
+- [ ] T16: users·sessions 모델과 비밀번호 해시 함수. 필요한 패키지는 목적과 함께 requirements.txt에 기록한다.
+  확인: python -m backend.init_db로 users·sessions 테이블 생성, 기존 tasks는 변경 없음. 해시 결과가 평문과 다르고 같은 비밀번호도 매번 다른 값이며 검증은 성공.
+- [ ] T17: 회원가입 API POST /api/auth/signup.
+  확인: 정상 가입 201, 대소문자만 다른 중복 아이디 409, 규칙 위반 422, SQL로 password_hash에 평문이 없음.
+- [ ] T18: 로그인·로그아웃·내 정보 API와 세션 쿠키.
+  확인: 로그인 200과 HttpOnly·SameSite=Lax 쿠키, 틀린 아이디·비밀번호 모두 같은 401 안내, /api/auth/me 200,
+  로그아웃 204 후 같은 쿠키로 me 401, App 재시작 후 세션 유지, 만료된 세션 401.
+- [ ] T19: tasks에 user_id(users 외래키) 추가 마이그레이션과 기존 데이터 처리.
+  확인: 실행 전 tasks 백업 파일 생성, 기존 행 처리 방법을 사용자에게 확인받은 뒤 실행, DESCRIBE tasks로 user_id NOT NULL·외래키 확인.
+- [ ] T20: /api/tasks 인증 필수와 사용자별 데이터 분리.
+  확인: 미로그인 401, 사용자 A·B가 각자 등록한 할 일만 조회·검색·필터, A가 B의 id로 PATCH·DELETE 시 404이고 B의 데이터 유지. T07 API 회귀 통과.
+- [ ] T21: 화면에 회원가입·로그인·로그아웃 추가, 로그인한 아이디 표시, 401 응답 시 로그인 화면으로 이동.
+  확인: 브라우저에서 가입 → 로그인 → 할 일 등록 → 로그아웃 → 다른 계정 로그인 시 이전 계정의 할 일이 보이지 않음. 아이디·오류 문구는 글자로 표시.
+- [ ] T22: 배포 반영. App 재시작, 화면 파일을 /var/www/task-flow에 복사, Nginx에서 /api/auth/login 요청 횟수 제한.
+  확인: Web 주소로 A·B 시나리오 재확인, App 재시작 후 로그인 유지, 짧은 시간 반복 로그인 시 429.
 ## 실행 기준
 T01~T04: python3 -m http.server 5500 --bind 127.0.0.1 --directory frontend
 T05~T11: 가상환경에서 python -m uvicorn backend.main:app --host 127.0.0.1 --port 8000 --reload
+T13~: App은 systemd(task-flow-api) 서비스로 실행한다. 코드 변경 후 sudo systemctl restart task-flow-api.
+T14~: 화면은 Web 주소(Nginx, http://127.0.0.1)로 연다. 화면 변경 후 sudo install -m 644 frontend/* /var/www/task-flow/.
+T15~: 개발 중 확인은 다른 포트(예: 8001)에서 uvicorn을 따로 실행해 하고, 운영 서비스(8000)는 확인이 끝난 뒤 재시작한다.
 실제 존재하는 파일을 확인한 뒤 명령을 실행한다.
 ## 기록
 각 작업에 변경 파일, 실행 명령, 실제 확인 결과, 남은 오류를 기록한다.
