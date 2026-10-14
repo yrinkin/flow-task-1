@@ -2,6 +2,11 @@
   box-sizing: border-box;
 }
 
+/* hidden 속성은 클래스의 display 지정(flex 등)보다 항상 우선해 요소를 숨긴다. */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;

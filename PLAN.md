@@ -153,6 +153,7 @@
   데이터 정리(사용자 요청): abcd 비밀번호를 사용자가 기억하지 못해 로그인 401. 임시 계정 가입·로그인 200으로 기능 정상 확인(임시 계정 삭제).
   ~/task-flow-backups/before-move-abcd-to-kim-20261014-141007.sql 백업 후 한 트랜잭션으로 할 일 8개를 kim(id 57)에게 옮기고 남은 할 일 0개 조건으로 abcd 삭제. 할 일 8개 유지.
   사용자 브라우저 확인(2026-10-14, Web 주소): kim 로그인·목록 → 할 일 등록(201, id 46) → 로그아웃·재로그인 후 유지 → 새 계정 her 가입·자동 로그인, her 목록에 kim 할 일 없음(DB: kim 9개·her 0개). 서버 로그로 확인. 남은 오류 없음.
+  후속 수정(2026-10-14): 로그인 화면에 로그아웃 버튼(#user-bar)과 회원가입 폼(#signup-form)이 보임 → .user-bar·.auth-form의 display:flex가 hidden 속성을 덮어씀. styles.css에 [hidden]{display:none !important} 추가, /var/www/task-flow에 복사. 사용자 브라우저 확인 정상.
 - [ ] T22: 배포 반영. App 재시작, 화면 파일을 /var/www/task-flow에 복사, Nginx에서 /api/auth/login 요청 횟수 제한.
   확인: Web 주소로 A·B 시나리오 재확인, App 재시작 후 로그인 유지, 짧은 시간 반복 로그인 시 429.
 ## 실행 기준
