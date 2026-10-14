@@ -226,6 +226,107 @@ h2 {
   text-decoration: line-through;
 }
 
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.app-header h1 {
+  margin: 0;
+}
+
+.user-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #444;
+  overflow-wrap: anywhere;
+}
+
+.user-bar button {
+  padding: 6px 12px;
+  font-size: 0.9rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.auth-view {
+  max-width: 360px;
+  padding: 20px;
+  background: #fff;
+  border: 1px solid #e2e4e8;
+  border-radius: 8px;
+}
+
+.auth-view h2 {
+  margin-top: 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.auth-form input {
+  padding: 10px 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.auth-form button[type="submit"] {
+  margin-top: 10px;
+  padding: 10px 18px;
+  font-size: 1rem;
+  border: none;
+  border-radius: 6px;
+  background: #2f6fed;
+  color: #fff;
+  cursor: pointer;
+}
+
+.auth-form button[type="submit"]:disabled {
+  background: #e0e0e0;
+  color: #888;
+  cursor: not-allowed;
+}
+
+.hint {
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.auth-notice {
+  min-height: 1.2em;
+  margin: 0 0 8px;
+  color: #2e7d32;
+  font-size: 0.9rem;
+}
+
+.auth-switch {
+  margin: 8px 0 0;
+  font-size: 0.9rem;
+  color: #555;
+}
+
+.link-button {
+  padding: 0;
+  border: none;
+  background: none;
+  color: #2f6fed;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 @media (max-width: 480px) {
   .task-main {
     flex-direction: column;

@@ -8,8 +8,43 @@
 </head>
 <body>
   <main class="container">
-    <h1>Task Flow</h1>
+    <header class="app-header">
+      <h1>Task Flow</h1>
+      <div id="user-bar" class="user-bar" hidden>
+        <span><strong id="current-user"></strong> 님</span>
+        <button id="logout-button" type="button">로그아웃</button>
+      </div>
+    </header>
 
+    <p id="loading-message" class="empty-message">로그인 상태를 확인하는 중입니다…</p>
+
+    <section id="auth-view" class="auth-view" aria-labelledby="auth-heading" hidden>
+      <h2 id="auth-heading">로그인</h2>
+      <p id="auth-notice" class="auth-notice" role="status"></p>
+
+      <form id="login-form" class="auth-form" novalidate>
+        <label for="login-username">아이디</label>
+        <input id="login-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false">
+        <label for="login-password">비밀번호</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password">
+        <button id="login-button" type="submit">로그인</button>
+        <p class="auth-switch">계정이 없나요? <button id="show-signup" type="button" class="link-button">회원가입</button></p>
+      </form>
+
+      <form id="signup-form" class="auth-form" novalidate hidden>
+        <label for="signup-username">아이디 <span class="hint">영문 소문자·숫자·밑줄(_) 3~30자</span></label>
+        <input id="signup-username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false">
+        <label for="signup-password">비밀번호 <span class="hint">8~64자</span></label>
+        <input id="signup-password" name="password" type="password" autocomplete="new-password">
+        <label for="signup-password-confirm">비밀번호 확인</label>
+        <input id="signup-password-confirm" name="password_confirm" type="password" autocomplete="new-password">
+        <button id="signup-button" type="submit">가입하고 로그인</button>
+        <p class="auth-switch">이미 계정이 있나요? <button id="show-login" type="button" class="link-button">로그인</button></p>
+      </form>
+      <p id="auth-error" class="form-error" role="alert"></p>
+    </section>
+
+    <div id="app-view" hidden>
     <form id="task-form" class="task-form" novalidate>
       <div class="form-row">
         <label for="task-title" class="sr-only">할 일 제목</label>
@@ -57,6 +92,7 @@
       <p id="empty-message" class="empty-message">등록된 할 일이 없습니다.</p>
       <ul id="task-list" class="task-list"></ul>
     </section>
+    </div>
   </main>
 
   <script src="app.js"></script>
