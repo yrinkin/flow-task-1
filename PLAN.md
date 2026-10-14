@@ -133,8 +133,14 @@
   실행: --assign-to 없음·없는 사용자 → 종료 코드 1, tasks 구조 변경 없음. --assign-to abcd → 컬럼 추가(NULL)·8개 배정·NOT NULL·ix_tasks_user_id·fk_tasks_user_id(ON DELETE CASCADE). 다시 실행 → "이미 적용".
   결과: DESCRIBE tasks에서 user_id int NOT NULL MUL, 8행 모두 abcd, user_id 없는 INSERT·없는 사용자 INSERT 거절.
   영향: 운영 서비스(이전 코드)는 할 일 조회 200, 등록은 user_id가 없어 503("Field 'user_id' doesn't have a default value"). T20 반영 후 해소. 남은 오류 없음(T20 대기).
-- [ ] T20: /api/tasks 인증 필수와 사용자별 데이터 분리.
+- [x] T20: /api/tasks 인증 필수와 사용자별 데이터 분리.
   확인: 미로그인 401, 사용자 A·B가 각자 등록한 할 일만 조회·검색·필터, A가 B의 id로 PATCH·DELETE 시 404이고 B의 데이터 유지. T07 API 회귀 통과.
+  기록(2026-10-14): backend/store.py(DbTaskStore 모든 메서드에 user_id, 다른 사용자 행은 없는 행과 같이 처리), backend/main.py(/api/tasks 4개에 current_user 의존성).
+  실행: 포트 8001 uvicorn + urllib 스크립트 38개 통과. 미로그인·위조 쿠키 GET·POST·PATCH·DELETE 401(잘못된 본문도 401), 응답에 user_id 없음,
+  A 3개·B 2개 각자 조회, 같은 제목 검색·우선순위 필터·AND도 자기 것만, abcd 할 일 미노출, 등록·수정 시 user_id 지정 422.
+  A→B·A/B→abcd PATCH·DELETE 404(없는 id와 같은 본문), B 데이터 그대로. T07 회귀(이 API 기준으로 다시 작성): 부분 수정 유지, due_date null, PATCH 위반 5종·POST 빈 제목·잘못된 필터 422, 삭제 204·재삭제 404.
+  로그아웃한 쿠키로 GET·POST 401, B 영향 없음. abcd 할 일 8개 시험 전후 동일. 시험 계정(t20*)은 삭제해 그 할 일·세션도 CASCADE로 삭제. 로그에 비밀번호·세션 값 없음.
+  운영 서비스(8000) 반영은 사용자 재시작 필요(재시작 시 T19 이후의 등록 503 해소).
 - [ ] T21: 화면에 회원가입·로그인·로그아웃 추가, 로그인한 아이디 표시, 401 응답 시 로그인 화면으로 이동.
   확인: 브라우저에서 가입 → 로그인 → 할 일 등록 → 로그아웃 → 다른 계정 로그인 시 이전 계정의 할 일이 보이지 않음. 아이디·오류 문구는 글자로 표시.
 - [ ] T22: 배포 반영. App 재시작, 화면 파일을 /var/www/task-flow에 복사, Nginx에서 /api/auth/login 요청 횟수 제한.

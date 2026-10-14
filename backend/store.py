@@ -45,16 +45,22 @@ def to_column_value(value: object) -> object:
 
 
 class DbTaskStore:
-    """MariaDB tasks 테이블에 할 일을 저장한다. API를 재시작해도 데이터가 유지된다."""
+    """MariaDB tasks 테이블에 할 일을 저장한다. 모든 메서드는 user_id의 할 일에만 적용된다."""
+
+    def _owned_row(self, session, user_id: int, task_id: int) -> TaskRow | None:
+        """user_id의 할 일이면 행을, 없거나 다른 사용자의 할 일이면 None을 반환한다(둘을 구분하지 않는다)."""
+        row = session.get(TaskRow, task_id)
+        return row if row is not None and row.user_id == user_id else None
 
     def list(
         self,
+        user_id: int,
         q: str | None = None,
         status: Status | None = None,
         priority: Priority | None = None,
     ) -> list[Task]:
-        """조건을 모두 만족하는 할 일을 id 순서로 반환한다. None 조건은 무시한다."""
-        statement = select(TaskRow).order_by(TaskRow.id)
+        """user_id의 할 일 중 조건을 모두 만족하는 것을 id 순서로 반환한다. None 조건은 무시한다."""
+        statement = select(TaskRow).where(TaskRow.user_id == user_id).order_by(TaskRow.id)
         query = (q or "").strip().lower()
         if query:
             # %, _ 를 글자 그대로 검색하고, DB 정렬 규칙과 관계없이 소문자로 비교한다.
@@ -68,24 +74,25 @@ class DbTaskStore:
         with SessionLocal() as session:
             return [to_task(row) for row in session.scalars(statement)]
 
-    def create(self, data: TaskCreate) -> Task:
+    def create(self, user_id: int, data: TaskCreate) -> Task:
         row = TaskRow(
+            user_id=user_id,
             title=data.title,
             description=data.description,
             status=Status.TODO.value,
             priority=data.priority.value,
             due_date=data.due_date,
-            created_at=datetime.now(timezone.utc).replace(microsecond=0, tzinfo=None),
+            created_at=utc_now(),
         )
         with SessionLocal() as session, session.begin():
             session.add(row)
             session.flush()
             return to_task(row)
 
-    def update(self, task_id: int, changes: dict[str, object]) -> Task | None:
-        """전달된 필드만 바꾼다. 없는 id는 None을 반환한다."""
+    def update(self, user_id: int, task_id: int, changes: dict[str, object]) -> Task | None:
+        """전달된 필드만 바꾼다. 없거나 다른 사용자의 id는 None을 반환한다."""
         with SessionLocal() as session, session.begin():
-            row = session.get(TaskRow, task_id)
+            row = self._owned_row(session, user_id, task_id)
             if row is None:
                 return None
             for name, value in changes.items():
@@ -93,10 +100,10 @@ class DbTaskStore:
             session.flush()
             return to_task(row)
 
-    def delete(self, task_id: int) -> bool:
-        """삭제했으면 True, 없는 id면 False를 반환한다."""
+    def delete(self, user_id: int, task_id: int) -> bool:
+        """삭제했으면 True, 없거나 다른 사용자의 id면 False를 반환한다."""
         with SessionLocal() as session, session.begin():
-            row = session.get(TaskRow, task_id)
+            row = self._owned_row(session, user_id, task_id)
             if row is None:
                 return False
             session.delete(row)

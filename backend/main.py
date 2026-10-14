@@ -116,29 +116,30 @@ def list_tasks(
     q: str | None = None,
     status: Status | None = None,
     priority: Priority | None = None,
+    user: User = Depends(current_user),
 ) -> list[Task]:
-    """제목 검색(q)과 상태·우선순위 필터를 AND로 적용해 등록 순서로 반환한다."""
-    return store.list(q=q, status=status, priority=priority)
+    """로그인한 사용자의 할 일에 제목 검색(q)과 상태·우선순위 필터를 AND로 적용해 등록 순서로 반환한다."""
+    return store.list(user.id, q=q, status=status, priority=priority)
 
 
 @app.post("/api/tasks", status_code=status.HTTP_201_CREATED)
-def create_task(data: TaskCreate) -> Task:
-    """할 일을 등록한다. 상태는 항상 TODO로 시작한다."""
-    return store.create(data)
+def create_task(data: TaskCreate, user: User = Depends(current_user)) -> Task:
+    """로그인한 사용자의 할 일을 등록한다. 상태는 항상 TODO로 시작한다."""
+    return store.create(user.id, data)
 
 
 @app.patch("/api/tasks/{task_id}")
-def update_task(task_id: int, data: TaskUpdate) -> Task:
-    """보낸 필드만 수정하고 나머지는 유지한다."""
-    task = store.update(task_id, data.changes())
+def update_task(task_id: int, data: TaskUpdate, user: User = Depends(current_user)) -> Task:
+    """보낸 필드만 수정하고 나머지는 유지한다. 다른 사용자의 할 일은 없는 id와 같은 404."""
+    task = store.update(user.id, task_id, data.changes())
     if task is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=TASK_NOT_FOUND)
     return task
 
 
 @app.delete("/api/tasks/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_task(task_id: int) -> None:
-    """할 일을 삭제한다."""
-    if not store.delete(task_id):
+def delete_task(task_id: int, user: User = Depends(current_user)) -> None:
+    """로그인한 사용자의 할 일을 삭제한다. 다른 사용자의 할 일은 없는 id와 같은 404."""
+    if not store.delete(user.id, task_id):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=TASK_NOT_FOUND)
 
